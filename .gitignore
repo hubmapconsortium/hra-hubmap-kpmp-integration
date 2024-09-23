@@ -1,3 +1,5 @@
+# Dataset
+*.h5ad
 # custom ignores
 notebooks/datasets/
 
