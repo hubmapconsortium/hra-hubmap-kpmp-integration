@@ -2,7 +2,7 @@
 *.h5ad
 # custom ignores
 notebooks/datasets/
-
+.vscode
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
