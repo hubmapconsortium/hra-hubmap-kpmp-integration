@@ -1,3 +1,6 @@
+# SIF Files
+*.sif
+
 # Dataset
 *.h5ad
 # custom ignores
