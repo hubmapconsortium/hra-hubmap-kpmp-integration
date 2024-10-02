@@ -3,6 +3,8 @@
 
 # Dataset
 *.h5ad
+*.csv
+
 # custom ignores
 notebooks/datasets/
 .vscode
