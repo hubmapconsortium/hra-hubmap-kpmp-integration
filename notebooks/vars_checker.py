@@ -56,6 +56,7 @@ datasets = {
     'KPMP SC RNAseq': "kpmp-sc-rnaseq.obs.csv",
     'KPMP SN RNAseq': "kpmp-sn-rnaseq.obs.csv",
     'HuBMAP Left Kidney': "hubmap-LK-processed.obs.csv",
+    'HuBMAP Right Kidney': "hubmap-RK-processed.obs.csv",
 }
 
 # process_datasets(datasets, "checker_output")
