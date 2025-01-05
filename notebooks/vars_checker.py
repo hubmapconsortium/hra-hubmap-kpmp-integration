@@ -5,6 +5,9 @@ from tqdm import tqdm
 script_dir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(script_dir)
 
+# Uncomment all the functions before running the code. Place the file in the same directory as the obs.
+# csv files for KPMP and HuBMAP. There are two files in total; I am still working on the other one.
+
 Hubmap_OPMI_onto_id = ["age", "sex", "race",
                        "azimuth_label", "predicted_label","height","weight","cause_of_death"]
 
