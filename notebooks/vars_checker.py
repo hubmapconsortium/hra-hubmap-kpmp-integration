@@ -11,6 +11,7 @@ os.chdir(script_dir)
 Hubmap_OPMI_onto_id = ["age", "sex", "race",
                        "azimuth_label", "predicted_label","height","weight","cause_of_death"]
 
+extrat_OPMI_list=["CKD","AKI"]
 
 def json_saver(data, output_path):
     with open(output_path, 'w') as f:
@@ -66,7 +67,6 @@ def check_the_onoto_label_values(value, df):
     unique_values = df[value].drop_duplicates().tolist()
     processed_values = ["Unknown" if pd.isna(v) else v for v in unique_values]
     return {value: processed_values}
-
 
 def onotology_checker(datasets, output_dir, hubmap_OPMI_list):
     output_file = os.path.join(output_dir, "onotology_checker.json")
@@ -129,6 +129,11 @@ def extract_fundamental_values(input_json):
     fundamental_values.extend(BMI_OPMI)
     return fundamental_values
 
+def replicated_OPMI_onto_checker(name):
+    if name=="CKD":
+        return "MONDO_0005300"
+    elif name=="AKI":
+        return "MONDO_0002492"
 
 def csv_to_json(input_csv, output_json):
     try:
@@ -157,7 +162,10 @@ def csv_to_json(input_csv, output_json):
         return
 
     for item in fundamental_values:
-        if isinstance(item, str):
+        if item in extrat_OPMI_list:
+                OPMI_in_KPMP_and_HUBmAP[item] = replicated_OPMI_onto_checker(item)
+                continue
+        elif isinstance(item, str):
             class_id = result.get(item, result.get(
                 item.lower(), {})).get("Class ID", None)
             OPMI_in_KPMP_and_HUBmAP[item] = (
