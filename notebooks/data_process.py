@@ -6,11 +6,10 @@ import gzip
 import shutil
 import csv
 import os
-# run var_checker.py before run this code
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(script_dir)
-
+# Set the working directory to the location of the script
 script_dir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(script_dir)
 os.makedirs("main_output", exist_ok=True)
@@ -27,6 +26,11 @@ def h5ad_obs_to_csv(input_h5ad):
     x.obs.to_csv(output_csv)
 
 
+# datasets = {
+#     'KPMP SC RNAseq': 'kpmp-sc-rnaseq.h5ad',
+#     'KPMP SN RNAseq': 'kpmp-sn-rnaseq.h5ad',
+#     'HuBMAP Left Kidney': 'hubmap-LK-processed.h5ad'
+# }
 
 with open("checker_output\OPMI_for_KPMP_and_HUBMAP.json", "r") as file:
     data = json.load(file)
@@ -213,10 +217,10 @@ def decompress_gz_to_csv(input_gz_path, output_csv_path):
         with open(output_csv_path, 'w') as csv_file:  
             shutil.copyfileobj(gz_file, csv_file) 
 
-datasets = {'KPMP SC RNAseq': "kpmp-sc-rnaseq.obs.csv",
+datasets = {
+    'KPMP SC RNAseq': "kpmp-sc-rnaseq.obs.csv",
     'KPMP SN RNAseq': "kpmp-sn-rnaseq.obs.csv",
     'HuBMAP Left Kidney': "hubmap-LK-processed.obs.csv",
-    'HuBMAP Right Kidney': "hubmap-RK-processed.obs.csv",
 }
 def combine_the_kpmp_and_hubmap(output_name_and_path):
     with gzip.open(output_name_and_path+".csv.gz", 'wt', compresslevel=9, newline='') as csvfile:
@@ -232,5 +236,5 @@ def combine_the_kpmp_and_hubmap(output_name_and_path):
                 if collection.startswith("HuBMAP"):
                  normalized_row=normalize_HUBMAP_data(row, collection)
                 writer.writerow(normalized_row)
-combine_the_kpmp_and_hubmap("main_output/KPMP-normalized-obs")
-decompress_gz_to_csv("main_output/KPMP-normalized-obs.csv.gz","main_output/KPMP-normalized-obs.csv")
+# combine_the_kpmp_and_hubmap("main_output/KPMP-normalized-obs")
+# decompress_gz_to_csv("main_output/KPMP-normalized-obs.csv.gz","main_output/KPMP-normalized-obs.csv")
