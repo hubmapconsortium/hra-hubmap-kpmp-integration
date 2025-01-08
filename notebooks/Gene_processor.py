@@ -17,6 +17,11 @@ from data_process import (
     ontologize_BMI_to_OPMI,
     decompress_gz_to_csv,
 )
+
+# Run vars_checker.py before running data_process.py and gene_processor.py. 
+# Ensure all these files are located in the same directory as the .h5ad and .csv files.
+
+
 datasets = {
     "KPMP SC RNAseq": "kpmp-sc-rnaseq.h5ad",
      'KPMP SN RNAseq': "kpmp-sn-rnaseq.h5ad",

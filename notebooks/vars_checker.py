@@ -4,7 +4,8 @@ import requests,os
 from tqdm import tqdm
 script_dir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(script_dir)
-
+# Run vars_checker.py before running data_process.py and gene_processor.py. 
+# Ensure all these files are located in the same directory as the .h5ad and .csv files.
 Hubmap_OPMI_onto_id = ["age", "sex", "race",
                        "azimuth_label", "predicted_label","height","weight","cause_of_death"]
 

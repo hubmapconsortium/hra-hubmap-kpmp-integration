@@ -7,6 +7,10 @@ import shutil
 import csv
 import os
 
+# Run vars_checker.py before running data_process.py and gene_processor.py. 
+# Ensure all these files are located in the same directory as the .h5ad and .csv files.
+
+
 script_dir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(script_dir)
 # Set the working directory to the location of the script
