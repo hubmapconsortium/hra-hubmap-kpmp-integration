@@ -57,7 +57,7 @@ datasets = {
     'HuBMAP Right Kidney': "hubmap-RK-processed.obs.csv",
 }
 
-# process_datasets(datasets, "checker_output")
+process_datasets(datasets, "checker_output")
 
 
 def check_the_onoto_label_values(value, df):
@@ -99,7 +99,7 @@ def onotology_checker(datasets, output_dir, hubmap_OPMI_list):
 
     with open(output_file, "w") as f:
         json.dump(onto_list, f, indent=4)
-# onotology_checker(datasets, "checker_output",Hubmap_OPMI_onto_id)
+onotology_checker(datasets, "checker_output",Hubmap_OPMI_onto_id)
 
 
 def extract_fundamental_values(input_json):

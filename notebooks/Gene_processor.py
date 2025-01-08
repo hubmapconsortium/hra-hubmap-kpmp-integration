@@ -21,6 +21,7 @@ datasets = {
     "KPMP SC RNAseq": "kpmp-sc-rnaseq.h5ad",
      'KPMP SN RNAseq': "kpmp-sn-rnaseq.h5ad",
      'HuBMAP Left Kidney': "hubmap-LK-processed.h5ad",
+    'HuBMAP Right Kidney': "hubmap-RK-processed.h5ad",
 }
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
