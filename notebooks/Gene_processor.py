@@ -7,6 +7,12 @@ import shutil
 import csv
 import os
 import scanpy as sc
+from scipy.sparse import issparse
+from difflib import SequenceMatcher
+import itertools
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
 from data_process import (
     common_data_across_all_daatsets,
     redundant_fields_that_need_to_remove_from_KPMP,
@@ -130,3 +136,68 @@ def combine_the_obs_with_SPP1_for_kpmp_and_hubmap(output_name_and_path):
 
 combine_the_obs_with_SPP1_for_kpmp_and_hubmap("main_output/obs_with_SPP1_gene")
 decompress_gz_to_csv("main_output/obs_with_SPP1_gene.csv.gz", "main_output/obs_with_SPP1_gene.csv")
+
+
+def process_and_write_in_chunks(name, path, output_path, chunk_size=10000):
+    adata = sc.read_h5ad(path, backed="r")  
+    obs_index = adata.obs.index
+    var_index = adata.var.index
+    total_cells = len(obs_index)
+
+    collection = "Unknown"
+    if name.startswith("KPMP SC"):
+        collection = "KPMP SC"
+    elif name.startswith("KPMP SN"):
+        collection = "KPMP SN"
+    elif name.startswith("HuBMAP Left Kidney"):
+        collection = "HuBMAP Left Kidney"
+    elif name.startswith("HuBMAP Right Kidney"):
+        collection = "HuBMAP Right Kidney"
+
+
+    for start in range(0, total_cells, chunk_size):
+        end = min(start + chunk_size, total_cells)
+        print(f"Processing cells {start} to {end} for dataset: {name}")
+        
+        chunk = adata.X[start:end]
+        if issparse(chunk):
+            chunk = chunk.toarray() 
+
+        df_chunk = pd.DataFrame(chunk, index=obs_index[start:end], columns=var_index)
+        df_chunk["collection"] = collection
+
+        df_chunk.to_csv(output_path, mode="a", header=not (start > 0), index=False)
+
+def process_datasets(datasets, output_file):
+    open(output_file, "w").close()
+
+    for name, path in datasets.items():
+        print(f"Starting dataset: {name}")
+        process_and_write_in_chunks(name, path, output_file, chunk_size=10000)
+
+# output_file = "main_output/cell_column_gene_row.csv"
+# process_datasets(datasets, output_file)
+# too big to process (need more than 50 GB RAM 
+def counting_number_of_SPP1_in_different_cell_type(path_of_obs_with_SPP1_gene_csv_file,gene_type_column_name,output_json_path):
+    obs_data = pd.read_csv(path_of_obs_with_SPP1_gene_csv_file)
+    value_dict = obs_data[gene_type_column_name].value_counts().to_dict()
+    with open(output_json_path, "w") as json_file:
+        json.dump(value_dict, json_file, indent=4)
+counting_number_of_SPP1_in_different_cell_type("main_output/obs_with_SPP1_gene.csv", "cl_id", "main_output/counting_number_of_SPP1_in_different_cell_type.json")
+
+def create_cosine_similarity_matrix(file_path, column_name, output_csv_path):
+    obs_data = pd.read_csv(file_path)
+    unique_cell_types = obs_data[column_name].unique()
+    vectorizer = CountVectorizer().fit_transform(unique_cell_types)
+    vectors = vectorizer.toarray()
+    cosine_sim_matrix = cosine_similarity(vectors)
+    similarity_df = pd.DataFrame(
+        cosine_sim_matrix,
+        index=unique_cell_types,  
+        columns=unique_cell_types 
+    )
+    
+    similarity_df.to_csv(output_csv_path)
+    print(f"Cosine similarity matrix saved to {output_csv_path}")
+
+create_cosine_similarity_matrix("main_output/obs_with_SPP1_gene.csv", "cl_id", "main_output/cell_type_cosine_similarity.csv")
