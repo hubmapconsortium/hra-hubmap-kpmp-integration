@@ -1,15 +1,60 @@
 import pandas as pd
 import json
-import requests,os
+import requests
+import os
 from tqdm import tqdm
+import anndata
+import gzip
+import shutil
 script_dir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(script_dir)
-# Run vars_checker.py before running data_process.py and gene_processor.py. 
+# Run vars_checker.py before running data_process.py and gene_processor.py.
 # Ensure all these files are located in the same directory as the .h5ad and .csv files.
 Hubmap_OPMI_onto_id = ["age", "sex", "race",
-                       "azimuth_label", "predicted_label","height","weight","cause_of_death"]
+                       "azimuth_label", "predicted_label", "height", "weight", "cause_of_death"]
 
-extrat_OPMI_list=["CKD","AKI"]
+
+extrat_OPMI_list = ["CKD", "AKI"]
+
+h5ad_datasets = {
+    'KPMP SC RNAseq': 'kpmp-sc-rnaseq.h5ad',
+    'KPMP SN RNAseq': 'kpmp-sn-rnaseq.h5ad',
+    'HuBMAP Left Kidney': 'hubmap-LK-processed.h5ad',
+    'HuBMAP Right Kidney': 'hubmap-RK-processed.h5ad'
+}
+
+
+def decompress_gz_to_csv(input_gz_path, output_csv_path):
+    with gzip.open(input_gz_path, 'rt', encoding='utf-8') as gz_file:
+        with open(output_csv_path, 'w', encoding='utf-8') as csv_file:
+            shutil.copyfileobj(gz_file, csv_file)
+
+
+def h5ad_obs_to_csv(input_h5ad):
+    output_csv = input_h5ad.replace('.h5ad', '.obs.csv')
+
+    if not os.path.exists(output_csv):
+        print(f"Creating CSV for {input_h5ad}...")
+        try:
+            x = anndata.read_h5ad(input_h5ad, backed='r')
+            x.obs.to_csv(output_csv)
+            print(f"CSV created: {output_csv}")
+        except Exception as e:
+            print(f"Error processing {input_h5ad}: {e}")
+    else:
+        print(f"CSV already exists: {output_csv}")
+
+
+def obs_h5ad_to_csv():
+    for h5ad in h5ad_datasets.values():
+        if os.path.exists(h5ad):
+            h5ad_obs_to_csv(h5ad)
+        else:
+            print(f"File not found: {h5ad}. Skipping.")
+
+
+obs_h5ad_to_csv()
+
 
 def json_saver(data, output_path):
     with open(output_path, 'w') as f:
@@ -19,9 +64,20 @@ def json_saver(data, output_path):
 def process_datasets(datasets, output_dir):
     output_file = os.path.join(output_dir, "datasets_columns.json")
     os.makedirs(output_dir, exist_ok=True)
-    os.makedirs(os.path.dirname(output_dir), exist_ok=True)
-    with open(output_dir, "wb") as f:
-     f.write(requests.get("https://data.bioontology.org/ontologies/OPMI/download?apikey=8b5b7825-538d-40e0-9e9e-5ab9274a9aeb&download_format=csv").content)
+    # os.makedirs(os.path.dirname(output_dir), exist_ok=True)
+    download_url = "https://data.bioontology.org/ontologies/OPMI/download?apikey=8b5b7825-538d-40e0-9e9e-5ab9274a9aeb&download_format=csv"
+    compressed_file = os.path.join(output_dir, "OPMI.csv.gz")
+    decompressed_file = os.path.join(output_dir, "OPMI.csv")
+
+    if not os.path.exists(decompressed_file):
+        response = requests.get(download_url, stream=True)
+        response.raise_for_status()
+        with open(compressed_file, "wb") as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                f.write(chunk)
+        decompress_gz_to_csv(compressed_file, decompressed_file)
+        os.remove(compressed_file)
+
     columns_dict = {}
 
     for dataset_name, file_path in datasets.items():
@@ -45,7 +101,7 @@ def process_datasets(datasets, output_dir):
 
     columns_dict["common-KPMP"] = common_values
 
-    with open(output_file, "w") as f:
+    with open(output_file, "w", encoding="utf-8") as f:
         json.dump(columns_dict, f, indent=4)
 
     print(f"Column names saved to {output_file}")
@@ -66,11 +122,13 @@ def check_the_onoto_label_values(value, df):
     processed_values = ["Unknown" if pd.isna(v) else v for v in unique_values]
     return {value: processed_values}
 
+
 def onotology_checker(datasets, output_dir, hubmap_OPMI_list):
     output_file = os.path.join(output_dir, "onotology_checker.json")
     os.makedirs(output_dir, exist_ok=True)
     onto_list = {}
-    other_onto_items=["clusterClass","disease_category","assay","organism"]
+    other_onto_items = ["clusterClass",
+                        "disease_category", "assay", "organism"]
     total_steps = sum([len(hubmap_OPMI_list) if name.startswith("HuBMAP") else 1
                        for name in datasets.keys()])
     progress_bar = tqdm(total=total_steps,
@@ -84,7 +142,7 @@ def onotology_checker(datasets, output_dir, hubmap_OPMI_list):
             onoto_label = [item[:-17] for item in onot_id]
             for item in other_onto_items:
                 if item in df.columns:
-                  onoto_label.append(item) 
+                    onoto_label.append(item)
             for item in onoto_label:
                 label_values = check_the_onoto_label_values(item, df)
                 onto_list[name].append(label_values)
@@ -100,7 +158,9 @@ def onotology_checker(datasets, output_dir, hubmap_OPMI_list):
 
     with open(output_file, "w") as f:
         json.dump(onto_list, f, indent=4)
-onotology_checker(datasets, "checker_output",Hubmap_OPMI_onto_id)
+
+
+onotology_checker(datasets, "checker_output", Hubmap_OPMI_onto_id)
 
 
 def extract_fundamental_values(input_json):
@@ -127,21 +187,16 @@ def extract_fundamental_values(input_json):
     fundamental_values.extend(BMI_OPMI)
     return fundamental_values
 
+
 def replicated_OPMI_onto_checker(name):
-    if name=="CKD":
+    if name == "CKD":
         return "MONDO_0005300"
-    elif name=="AKI":
+    elif name == "AKI":
         return "MONDO_0002492"
 
+
 def csv_to_json(input_csv, output_json):
-    try:
-        df = pd.read_csv(input_csv)
-    except FileNotFoundError as e:
-        print(f"Error reading CSV file: {e}")
-        return
-    except pd.errors.EmptyDataError:
-        print("CSV file is empty.")
-        return
+    df = pd.read_csv(input_csv)
 
     key_column = df.columns[1]
     result = {}
@@ -161,8 +216,8 @@ def csv_to_json(input_csv, output_json):
 
     for item in fundamental_values:
         if item in extrat_OPMI_list:
-                OPMI_in_KPMP_and_HUBmAP[item] = replicated_OPMI_onto_checker(item)
-                continue
+            OPMI_in_KPMP_and_HUBmAP[item] = replicated_OPMI_onto_checker(item)
+            continue
         elif isinstance(item, str):
             class_id = result.get(item, result.get(
                 item.lower(), {})).get("Class ID", None)
@@ -183,7 +238,8 @@ def csv_to_json(input_csv, output_json):
         print(f"Error writing JSON file: {e}")
 
 
-csv_to_json("checker_output\OPMI.csv","checker_output\OPMI_for_KPMP_and_HUBMAP.json")
+csv_to_json("checker_output\OPMI.csv",
+            "checker_output\OPMI_for_KPMP_and_HUBMAP.json")
 
 
 def extract_obs_columns(name, csv_file):
@@ -198,4 +254,4 @@ def read_columns_of_file():
     json_saver(output_json, "checker_output\columns_for_unchange.json")
 
 
-# read_columns_of_file()
+read_columns_of_file()
