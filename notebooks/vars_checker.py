@@ -128,7 +128,7 @@ def onotology_checker(datasets, output_dir, hubmap_OPMI_list):
     os.makedirs(output_dir, exist_ok=True)
     onto_list = {}
     other_onto_items = ["clusterClass",
-                        "disease_category", "assay", "organism"]
+                        "disease_category", "assay", "organism","tissue_type","suspension_type"]
     total_steps = sum([len(hubmap_OPMI_list) if name.startswith("HuBMAP") else 1
                        for name in datasets.keys()])
     progress_bar = tqdm(total=total_steps,
@@ -161,6 +161,25 @@ def onotology_checker(datasets, output_dir, hubmap_OPMI_list):
 
 
 onotology_checker(datasets, "checker_output", Hubmap_OPMI_onto_id)
+
+def CL_id_to_cell_type_json_file_maker(saved_dict, file_path):
+    df = pd.read_csv(file_path)
+    for _, row in df.iterrows():
+        cell_type = row.get("cell_type") or row.get("predicted_label")
+        ontology_id = row.get("cell_type_ontology_term_id") or row.get("predicted_CLID")
+        if ontology_id in saved_dict:
+            continue
+        if cell_type and ontology_id:
+            saved_dict[ontology_id] = cell_type
+    return saved_dict
+
+def download_CL_id_to_cell_type_json_file_maker_as_json(output_path):
+    saved_dict = {}  
+    for name, path in datasets.items():
+        saved_dict = CL_id_to_cell_type_json_file_maker(saved_dict, path)
+    with open(output_path, "w") as f:
+        json.dump(saved_dict, f, indent=4)
+download_CL_id_to_cell_type_json_file_maker_as_json("checker_output/CL_id_to_cell_type.json")
 
 
 def extract_fundamental_values(input_json):
@@ -255,3 +274,4 @@ def read_columns_of_file():
 
 
 read_columns_of_file()
+
