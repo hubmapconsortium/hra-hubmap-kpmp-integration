@@ -24,14 +24,15 @@ from data_process import (
     decompress_gz_to_csv,
 )
 
-# Run vars_checker.py before running data_process.py and gene_processor.py. 
+# Run vars_checker.py before running data_process.py and gene_processor.py.
 # Ensure all these files are located in the same directory as the .h5ad and .csv files.
-
+# there are some problem with this file, comment last two rows in "data_process.py" before runing this file
+# looks like the function is globle, will fix it
 
 datasets = {
     "KPMP SC RNAseq": "kpmp-sc-rnaseq.h5ad",
-     'KPMP SN RNAseq': "kpmp-sn-rnaseq.h5ad",
-     'HuBMAP Left Kidney': "hubmap-LK-processed.h5ad",
+    'KPMP SN RNAseq': "kpmp-sn-rnaseq.h5ad",
+    'HuBMAP Left Kidney': "hubmap-LK-processed.h5ad",
     'HuBMAP Right Kidney': "hubmap-RK-processed.h5ad",
 }
 
@@ -42,12 +43,14 @@ os.makedirs("main_output", exist_ok=True)
 gene_name = ["SPP1"]
 combined_obs_rows = []
 
+
 def download_var_as_csv():
     for name, path in datasets.items():
         print("Currently working on " + name)
         adata = sc.read_h5ad(path, backed="r")
         output_file = os.path.splitext(path)[0] + ".var.csv"
         adata.var.to_csv(output_file)
+
 
 def find_the_obs_by_gene_name(file_name, file_path):
     adata = sc.read_h5ad(file_path, backed="r")
@@ -57,17 +60,20 @@ def find_the_obs_by_gene_name(file_name, file_path):
     elif "hugo_symbol" in adata.var.columns:
         gene_column = "hugo_symbol"
     else:
-        raise ValueError(f"Neither 'feature_name' nor 'hugo_symbol' column is present in `adata.var` for {file_name}.")
+        raise ValueError(
+            f"Neither 'feature_name' nor 'hugo_symbol' column is present in `adata.var` for {file_name}.")
 
     gene_in_vars = adata.var.index[adata.var[gene_column].isin(gene_name)]
     if len(gene_in_vars) == 0:
         print(f"No matching genes found in {file_name}")
-        return pd.DataFrame()  
-    obs_row = adata.obs[adata.X[:, adata.var.index.isin(gene_in_vars)].sum(axis=1) > 0]
+        return pd.DataFrame()
+    obs_row = adata.obs[adata.X[:, adata.var.index.isin(
+        gene_in_vars)].sum(axis=1) > 0]
     obs_row = obs_row.copy()
     obs_row["gene_name"] = ", ".join(gene_name)
-    obs_row["gene_id"] = gene_in_vars[0] 
+    obs_row["gene_id"] = gene_in_vars[0]
     return obs_row
+
 
 def normalize_KPMP_data(row, collection):
     normalized_row = {
@@ -91,6 +97,7 @@ def normalize_KPMP_data(row, collection):
         normalized_row[value] = OPMI_checker(normalized_value)
     return normalized_row
 
+
 def normalize_HUBMAP_data(row, collection):
     normalized_row = {
         "consortium": "HuBMAP",
@@ -110,11 +117,13 @@ def normalize_HUBMAP_data(row, collection):
     unique_fields = extract_unique_fields_for_KPMP()
     for value in unique_fields:
         if value[2:] == "bmi":
-            normalized_row["H-bmi"] = ontologize_BMI_to_OPMI(row.get(value[2:], ""))
+            normalized_row["H-bmi"] = ontologize_BMI_to_OPMI(
+                row.get(value[2:], ""))
             continue
         normalized_value = row.get(value[2:], "")
         normalized_row[value] = OPMI_checker(normalized_value)
     return normalized_row
+
 
 def combine_the_obs_with_SPP1_for_kpmp_and_hubmap(output_name_and_path):
     with gzip.open(output_name_and_path + ".csv.gz", "wt", compresslevel=9, newline="") as csvfile:
@@ -134,12 +143,14 @@ def combine_the_obs_with_SPP1_for_kpmp_and_hubmap(output_name_and_path):
                     normalized_row = normalize_HUBMAP_data(row, collection)
                 writer.writerow(normalized_row)
 
+
 combine_the_obs_with_SPP1_for_kpmp_and_hubmap("main_output/obs_with_SPP1_gene")
-decompress_gz_to_csv("main_output/obs_with_SPP1_gene.csv.gz", "main_output/obs_with_SPP1_gene.csv")
+decompress_gz_to_csv("main_output/obs_with_SPP1_gene.csv.gz",
+                     "main_output/obs_with_SPP1_gene.csv")
 
 
 def process_and_write_in_chunks(name, path, output_path, chunk_size=10000):
-    adata = sc.read_h5ad(path, backed="r")  
+    adata = sc.read_h5ad(path, backed="r")
     obs_index = adata.obs.index
     var_index = adata.var.index
     total_cells = len(obs_index)
@@ -154,19 +165,21 @@ def process_and_write_in_chunks(name, path, output_path, chunk_size=10000):
     elif name.startswith("HuBMAP Right Kidney"):
         collection = "HuBMAP Right Kidney"
 
-
     for start in range(0, total_cells, chunk_size):
         end = min(start + chunk_size, total_cells)
         print(f"Processing cells {start} to {end} for dataset: {name}")
-        
+
         chunk = adata.X[start:end]
         if issparse(chunk):
-            chunk = chunk.toarray() 
+            chunk = chunk.toarray()
 
-        df_chunk = pd.DataFrame(chunk, index=obs_index[start:end], columns=var_index)
+        df_chunk = pd.DataFrame(
+            chunk, index=obs_index[start:end], columns=var_index)
         df_chunk["collection"] = collection
 
-        df_chunk.to_csv(output_path, mode="a", header=not (start > 0), index=False)
+        df_chunk.to_csv(output_path, mode="a",
+                        header=not (start > 0), index=False)
+
 
 def process_datasets(datasets, output_file):
     open(output_file, "w").close()
@@ -175,15 +188,46 @@ def process_datasets(datasets, output_file):
         print(f"Starting dataset: {name}")
         process_and_write_in_chunks(name, path, output_file, chunk_size=10000)
 
+
 # output_file = "main_output/cell_column_gene_row.csv"
 # process_datasets(datasets, output_file)
-# too big to process (need more than 50 GB RAM 
-def counting_number_of_SPP1_in_different_cell_type(path_of_obs_with_SPP1_gene_csv_file,gene_type_column_name,output_json_path):
+# too big to process (need more than 50 GB RAM
+filters = ["normal", "CKD", "AKI"]
+
+
+def replicated_OPMI_onto_checker(name):
+    return {"CKD": "Mondo_0005300", "AKI": "Mondo_0002492"}.get(name, name)
+
+
+def counting_number_of_SPP1_in_different_cell_type(
+    path_of_obs_with_SPP1_gene_csv_file,
+    gene_type_column_name,
+    output_dir, disease_filter
+):
+    os.makedirs(output_dir, exist_ok=True)
     obs_data = pd.read_csv(path_of_obs_with_SPP1_gene_csv_file)
-    value_dict = obs_data[gene_type_column_name].value_counts().to_dict()
-    with open(output_json_path, "w") as json_file:
-        json.dump(value_dict, json_file, indent=4)
-counting_number_of_SPP1_in_different_cell_type("main_output/obs_with_SPP1_gene.csv", "cl_id", "main_output/counting_number_of_SPP1_in_different_cell_type.json")
+    print("Available columns in the dataset:", obs_data.columns)
+    if gene_type_column_name not in obs_data.columns:
+        raise KeyError(
+            f"Column '{gene_type_column_name}' not found in the dataset.")
+    for item in disease_filter:
+        disease_code = replicated_OPMI_onto_checker(item)
+        filtered_data = obs_data[obs_data["disease"] == disease_code]
+        print(
+            f"Processing disease: {item}, Filtered rows: {len(filtered_data)}")
+        value_dict = filtered_data[gene_type_column_name].value_counts(
+        ).to_dict()
+        output_file = os.path.join(output_dir, f"SPP1_data_for_{item}.json")
+        with open(output_file, "w") as json_file:
+            json.dump(value_dict, json_file, indent=4)
+
+
+counting_number_of_SPP1_in_different_cell_type(
+    "main_output/obs_with_SPP1_gene.csv",
+    "cl_id",
+    "main_output/counting_number_of_SPP1_in_different_cell_type", filters
+)
+
 
 def create_cosine_similarity_matrix(file_path, column_name, output_csv_path):
     obs_data = pd.read_csv(file_path)
@@ -193,11 +237,13 @@ def create_cosine_similarity_matrix(file_path, column_name, output_csv_path):
     cosine_sim_matrix = cosine_similarity(vectors)
     similarity_df = pd.DataFrame(
         cosine_sim_matrix,
-        index=unique_cell_types,  
-        columns=unique_cell_types 
+        index=unique_cell_types,
+        columns=unique_cell_types
     )
-    
+
     similarity_df.to_csv(output_csv_path)
     print(f"Cosine similarity matrix saved to {output_csv_path}")
 
-create_cosine_similarity_matrix("main_output/obs_with_SPP1_gene.csv", "cl_id", "main_output/cell_type_cosine_similarity.csv")
+
+create_cosine_similarity_matrix(
+    "main_output/obs_with_SPP1_gene.csv", "cl_id", "main_output/cell_type_cosine_similarity.csv")
