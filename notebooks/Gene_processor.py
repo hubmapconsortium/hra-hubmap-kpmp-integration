@@ -252,33 +252,64 @@ def sex_onotology_checker(OPMI_onoto_id):
     return {"Pato_0000384": "male", "Pato_0000383": "female"}.get(OPMI_onoto_id, OPMI_onoto_id)
 
 
-def comparision_on_different_columns(column_list, filters,filters_cloumn_id, path_of_obs_with_SPP1_gene_csv_file, output_dir):
+HubMap_and_KPMP_comparison = True
+
+def comparision_on_different_columns(column_list, filters, filters_cloumn_id, path_of_obs_with_SPP1_gene_csv_file, output_dir):
+    print("comparision_on_different_columns")
     os.makedirs(output_dir, exist_ok=True)
     obs_data = pd.read_csv(path_of_obs_with_SPP1_gene_csv_file)
 
     for item in column_list:
         combined_data = {}
         row_labels = set()
-        for filter in filters:
-            disease_code = replicated_OPMI_onto_checker(filter)
-            filtered_data = obs_data[obs_data[filters_cloumn_id] == disease_code]
-            value_dict = filtered_data[item].value_counts().to_dict()
 
-            combined_data[filter] = value_dict
-            row_labels.update(value_dict.keys())
-        row_labels = sorted(row_labels)
-        df = pd.DataFrame(index=row_labels)
-        for filter in filters:
-            df[filter] = df.index.map(combined_data.get(
-                filter, {}).get)  # .fillna(0).astype(int)
-        if item == "sex":
-            df.index = df.index.map(sex_onotology_checker)
+        if not HubMap_and_KPMP_comparison:
+            for filter in filters:
+                disease_code = replicated_OPMI_onto_checker(filter)
+                filtered_data = obs_data[obs_data[filters_cloumn_id] == disease_code]
+                value_dict = filtered_data[item].value_counts().to_dict()
 
-        output_file = os.path.join(
-            output_dir, f"{item}_comparison_for_SPP1.csv")
+                combined_data[filter] = value_dict
+                row_labels.update(value_dict.keys())
+
+            row_labels = sorted(row_labels)
+            df = pd.DataFrame(index=row_labels)
+
+            for filter in filters:
+                df[filter] = df.index.map(combined_data.get(filter, {}).get)
+
+            if item == "sex":
+                df.index = df.index.map(sex_onotology_checker)
+
+        else: 
+            consortium = ['KPMP', 'HuBMAP']
+
+            for consortium_name in consortium:
+                set_data = obs_data[obs_data["consortium"] == consortium_name]
+
+                for filter in filters:
+                    disease_code = replicated_OPMI_onto_checker(filter)
+                    filtered_data = set_data[set_data[filters_cloumn_id] == disease_code]
+                    value_dict = filtered_data[item].value_counts().to_dict()
+
+                    combined_data[f"{consortium_name}_{filter}"] = value_dict
+                    row_labels.update(value_dict.keys())
+
+            row_labels = sorted(row_labels)
+            df = pd.DataFrame(index=row_labels)
+
+            for consortium_name in consortium:
+                for filter in filters:
+                    df[f"{consortium_name}_{filter}"] = df.index.map(
+                        combined_data.get(f"{consortium_name}_{filter}", {}).get
+                    )
+
+            if item[-3:] == "sex":
+                df.index = df.index.map(sex_onotology_checker)
+
+        output_file = os.path.join(output_dir, f"{item}_comparison_for_SPP1.csv")
         df.index.name = item
         df.to_csv(output_file)
-        print(f"Saved {output_file}")
 
 
 column_list = ["sex", "age", "as_id","cl_id"]
